@@ -1,0 +1,176 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Stw Network Template
+
+Resources:
+
+  #######
+  # VPC #
+  #######
+
+  StwVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: Stw vpc
+
+  StwInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Stw
+
+  StwVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref StwInternetGateway
+      VpcId: !Ref StwVpc
+
+  ###########
+  # SUBNETS #
+  ###########
+
+  StwSubnetPublic1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.101.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref StwVpc
+      AvailabilityZone: "eu-west-1a"
+      Tags:
+        - Key: Name
+          Value: Stw
+
+  StwSubnetPrivate1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref StwVpc
+      AvailabilityZone: "eu-west-1a"
+      Tags:
+        - Key: Name
+          Value: Stw
+
+  StwSubnetPrivate2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref StwVpc
+      AvailabilityZone: "eu-west-1b"
+      Tags:
+        - Key: Name
+          Value: Stw
+
+
+
+  ###############
+  # NAT GATEWAY #
+  ###############
+
+  StwNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt StwEIP.AllocationId
+      ConnectivityType: public
+      SubnetId: !GetAtt StwSubnetPublic1.SubnetId
+      Tags:
+        - Key: Name
+          Value: Stw
+
+  StwEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Stw
+
+  ###############
+  # ROUTE TABLE #
+  ###############
+
+  StwRouteTablePublic1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref StwVpc
+      Tags:
+        - Key: Name
+          Value: Stw
+
+  StwVPCRoute10:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref StwInternetGateway
+      RouteTableId: !Ref StwRouteTablePublic1
+
+
+
+  StwRouteTablePrivate1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref StwVpc
+      Tags:
+        - Key: Name
+          Value: Stw
+
+  StwVPCRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref StwNatGateway
+      RouteTableId: !Ref StwRouteTablePrivate1
+
+
+
+
+
+
+  StwSubnetRouteTableAssociation10:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref StwRouteTablePublic1
+      SubnetId: !Ref StwSubnetPublic1
+
+  StwSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref StwRouteTablePrivate1
+      SubnetId: !Ref StwSubnetPrivate1
+
+  StwSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref StwRouteTablePrivate1
+      SubnetId: !Ref StwSubnetPrivate2
+
+
+
+
+Outputs:
+  StwVpcId:
+    Description: Vpc Id
+    Value: !Ref StwVpc
+    Export:
+      Name: !Sub "${AWS::StackName}-Vpc-Id"
+  StwSubnetPublic1:
+    Description: SubnetPublic1 Id
+    Value: !Ref StwSubnetPublic1
+    Export:
+      Name: !Sub "${AWS::StackName}-SubnetPublic1-Id"
+  StwSubnetPrivate1:
+    Description: SubnetPrivate1 Id
+    Value: !Ref StwSubnetPrivate1
+    Export:
+      Name: !Sub "${AWS::StackName}-SubnetPrivate1-Id"
+  StwSubnetPrivate2:
+    Description: SubnetPrivate2 Id
+    Value: !Ref StwSubnetPrivate2
+    Export:
+      Name: !Sub "${AWS::StackName}-SubnetPrivate2-Id"
